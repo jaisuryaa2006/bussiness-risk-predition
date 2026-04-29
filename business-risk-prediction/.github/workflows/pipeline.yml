@@ -1,0 +1,56 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Training Script
+      run: |
+        python train_model.py
+
+    - name: Run Tests
+      # Since we don't have explicit tests yet, we'll just check if model file was generated
+      run: |
+        if [ ! -f "models/business_risk_model.pkl" ]; then
+          echo "Model file not found!"
+          exit 1
+        fi
+        echo "Model successfully trained and saved."
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+    - name: Deploy to Render
+      # Generally we use a deploy hook from Render. 
+      # Since the user requested it simply, we can use a placeholder for the webhook or action.
+      # Users usually configure RENDER_DEPLOY_HOOK_URL as a repository secret.
+      env:
+        deploy_url: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      run: |
+        if [ -n "$deploy_url" ]; then
+          curl -X POST "$deploy_url"
+          echo "Triggered Render deployment."
+        else
+          echo "No deploy URL secret configured. Skipping auto-deploy step, but project will automatically deploy if connected to Render GitHub app."
+        fi

@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: business-risk-prediction
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app"
